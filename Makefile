@@ -6,7 +6,7 @@
 # Preprocessor macros (for CPPFLAGS) of interest...
 # Note that the defaults should already be correct for most
 # platforms; you should not need to change any of these.
-# Read their descriptions in mdb.c if you do:
+# Read their descriptions in src/mdb.c if you do:
 #
 # - MDB_USE_POSIX_MUTEX, MDB_USE_POSIX_SEM, MDB_USE_SYSV_SEM
 # - MDB_DSYNC
@@ -15,15 +15,15 @@
 # - MDB_USE_PWRITEV
 # - MDB_USE_ROBUST
 #
-# There may be other macros in mdb.c of interest. You should
-# read mdb.c before changing any of them.
+# There may be other macros in src/mdb.c of interest. You should
+# read src/mdb.c before changing any of them.
 #
 CC	= gcc
 AR	= ar
 W	= -W -Wall -Wno-unused-parameter -Wbad-function-cast -Wuninitialized
 THREADS = -pthread
 OPT = -O2 -g
-CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS)
+CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS) -I./include
 LDFLAGS = $(THREADS)
 LDLIBS	= 
 SOLIBS	= 
@@ -45,7 +45,7 @@ mandir = $(datarootdir)/man
 
 ########################################################################
 
-IHDRS	= lmdb.h
+IHDRS	= include/lmdb.h
 ILIBS	= liblmdb.a
 ILIBS2	= liblmdb$(SOFULL)
 IPROGS	= mdb_stat mdb_copy mdb_dump mdb_load mdb_drop
@@ -119,28 +119,28 @@ mtest_enc4:	  mtest_enc4.o liblmdb.a crypto.lm
 
 mplay:	mplay.o liblmdb.a
 
-crypto.lm:	crypto.c
+crypto.lm:	helper/crypto.c
 	$(CC) -shared $(CFLAGS) -o $@ $^ -lsodium
 
-mdb.o: mdb.c lmdb.h midl.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c mdb.c
+mdb.o: src/mdb.c include/lmdb.h src/midl.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c src/mdb.c
 
-midl.o: midl.c midl.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c midl.c
+midl.o: src/midl.c src/midl.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c src/midl.c
 
-mdb.lo: mdb.c lmdb.h midl.h
-	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c mdb.c -o $@
+mdb.lo: src/mdb.c include/lmdb.h src/midl.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c src/mdb.c -o $@
 
-midl.lo: midl.c midl.h
-	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c midl.c -o $@
+midl.lo: src/midl.c src/midl.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c src/midl.c -o $@
 
-module.lo: module.c lmdb.h
-	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c module.c -o $@
+module.lo: src/module.c include/lmdb.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c src/module.c -o $@
 
 %:	%.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-%.o:	%.c lmdb.h
+%.o:	%.c include/lmdb.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 lmdb.pc: Makefile mdb_stat
@@ -164,14 +164,23 @@ coverage: xmtest
 	for i in mtest*.c [0-9]*.c; do j=`basename \$$i .c`; $(MAKE) $$j.o; \
 		gcc -o x$$j $$j.o $(COV_OBJS) -pthread $(COV_FLAGS); \
 		rm -rf testdb; mkdir testdb; ./x$$j; done
-	gcov xmdb.c
-	gcov xmidl.c
+	gcov xsrc/mdb.c
+	gcov xsrc/midl.c
 
 xmtest:	mtest.o xmdb.o xmidl.o
 	gcc -o xmtest mtest.o xmdb.o xmidl.o -pthread $(COV_FLAGS)
 
-xmdb.o: mdb.c lmdb.h midl.h
-	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c mdb.c -o $@
+xmdb.o: src/mdb.c include/lmdb.h src/midl.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c src/mdb.c -o $@
 
-xmidl.o: midl.c midl.h
-	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c midl.c -o $@
+xmidl.o: src/midl.c src/midl.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c src/midl.c -o $@
+
+%.o: src/%.c include/lmdb.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+%.o: tools/%.c include/lmdb.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+%.o: test/%.c include/lmdb.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
